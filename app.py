@@ -1,8 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
+import os
 
-# 1. Flask Instance Create Karo (Ye hona zaroori hai)
+# Flask setup - Gunicorn ko ye 'app' variable chahiye hota hai
 app = Flask(__name__)
 
 def scrape_lnmiit_attendance(email, password):
@@ -55,26 +56,29 @@ def scrape_lnmiit_attendance(email, password):
                     "percentage": percentage
                 })
                 seen_subjects.add(subject_full_name)
-        
+
         return attendance_results
 
     except Exception as e:
         print(f"Error: {e}")
         return None
 
-# 2. API Route Define Karo
+# --- FLASK ROUTES (ADDITION) ---
+
+@app.route('/')
+def home():
+    return "LNM-Track API is running!"
+
 @app.route('/api/attendance', methods=['POST'])
-def get_attendance():
+def get_attendance_api():
     data = request.get_json()
     
+    # Check if data exists
     if not data or 'email' not in data or 'password' not in data:
-        return jsonify({"status": "error", "message": "Email and Password required"}), 400
+        return jsonify({"status": "error", "message": "Email and Password missing"}), 400
     
-    email = data['email']
-    password = data['password']
-    
-    # Scrape function call karo
-    results = scrape_lnmiit_attendance(email, password)
+    # Call your working logic
+    results = scrape_lnmiit_attendance(data['email'], data['password'])
     
     if results is not None:
         return jsonify({
@@ -82,8 +86,9 @@ def get_attendance():
             "data": results
         })
     else:
-        return jsonify({"status": "error", "message": "Failed to fetch data from portal"}), 500
+        return jsonify({"status": "error", "message": "Scraping failed"}), 500
 
-# 3. Server Start (Local testing ke liye)
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Render ke liye port management
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
