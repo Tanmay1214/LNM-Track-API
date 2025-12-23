@@ -65,6 +65,3 @@ def scrape_lnmiit_attendance(email, password):
     except Exception as e:
         print(f"Error: {e}")
         return None
-
-# Test final logic
-scrape_lnmiit_attendance('25uec245@lnmiit.ac.in', 'Tanmay_2006')
