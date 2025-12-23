@@ -1,6 +1,9 @@
 import requests
 from bs4 import BeautifulSoup
-import re
+from flask import Flask, request, jsonify
+
+# 1. Flask Instance Create Karo (Ye hona zaroori hai)
+app = Flask(__name__)
 
 def scrape_lnmiit_attendance(email, password):
     base_url = "https://login.lnmiit.ac.in/"
@@ -22,7 +25,7 @@ def scrape_lnmiit_attendance(email, password):
         soup = BeautifulSoup(res.text, 'html.parser')
         
         attendance_results = []
-        seen_subjects = set() # Duplicates handle karne ke liye
+        seen_subjects = set()
 
         cards = soup.find_all('div', class_='card')
 
@@ -31,8 +34,6 @@ def scrape_lnmiit_attendance(email, password):
             if not title_tag: continue
             
             subject_full_name = title_tag.get_text(strip=True)
-            
-            # Agar subject pehle hi add ho chuka hai, toh skip karo
             if subject_full_name in seen_subjects:
                 continue
 
@@ -53,15 +54,36 @@ def scrape_lnmiit_attendance(email, password):
                     "attended": attended,
                     "percentage": percentage
                 })
-                seen_subjects.add(subject_full_name) # Mark as seen
-
-        # --- Final Clean Print ---
-        print(f"\n✅ Total Subjects Found: {len(attendance_results)}")
-        for item in attendance_results:
-            print(f"📌 {item['subject']} -> {item['percentage']}")
-            
+                seen_subjects.add(subject_full_name)
+        
         return attendance_results
 
     except Exception as e:
         print(f"Error: {e}")
         return None
+
+# 2. API Route Define Karo
+@app.route('/api/attendance', methods=['POST'])
+def get_attendance():
+    data = request.get_json()
+    
+    if not data or 'email' not in data or 'password' not in data:
+        return jsonify({"status": "error", "message": "Email and Password required"}), 400
+    
+    email = data['email']
+    password = data['password']
+    
+    # Scrape function call karo
+    results = scrape_lnmiit_attendance(email, password)
+    
+    if results is not None:
+        return jsonify({
+            "status": "success",
+            "data": results
+        })
+    else:
+        return jsonify({"status": "error", "message": "Failed to fetch data from portal"}), 500
+
+# 3. Server Start (Local testing ke liye)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
